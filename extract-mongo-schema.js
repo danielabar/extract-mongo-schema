@@ -1,7 +1,8 @@
 var MongoClient = require("mongodb").MongoClient;
+const ObjectID = require('mongodb').ObjectID;
 var wait = require("wait.for");
 
-var getSchema = function(url, opts) {
+var getSchema = function (url, opts) {
 	var db = wait.forMethod(MongoClient, "connect", url);
 
 	var l = db.listCollections();
@@ -9,10 +10,22 @@ var getSchema = function(url, opts) {
 	var schema = {};
 	var collections = {};
 
-	var findRelatedCollection = function(value, field) {
-		for(var collectionName in collections) {
-			var related = wait.forMethod(collections[collectionName].collection, "findOne", { _id: value });
-			if(related) {
+	var findRelatedCollection = function (collectionNameSource, key, typeName, value, field) {
+		const searchVal = typeName === 'Object' ? value.toString() : value;
+		// temp debug
+		console.log(`findRelated: colSrc = ${collectionNameSource}, key = ${key}, typeName = ${typeName}, searchVal = ${value}`);
+		try {
+			const testObj = ObjectID(searchVal);
+		} catch (err) {
+			console.log(`\t findRelatedCollection: invalid id, skipping...`);
+			return;
+		}
+		for (var collectionName in collections) {
+			console.log(`\t searching in ${collectionName}`);
+			const relatedByObject = wait.forMethod(collections[collectionName].collection, "findOne", { _id: ObjectID(searchVal) });
+			const relatedByString = wait.forMethod(collections[collectionName].collection, "findOne", { _id: searchVal });
+			if (relatedByObject || relatedByString) {
+				console.log(`\t\t found relationship to ${collectionName}`);
 				delete field["key"];
 				field["foreignKey"] = true;
 				field["references"] = collectionName;
@@ -22,75 +35,95 @@ var getSchema = function(url, opts) {
 		}
 	};
 
-	var getDocSchema = function(collectionName, doc, docSchema) {
-		for(var key in doc) {
-			if(!docSchema[key]) {
+	var getDocSchema = function (collectionName, doc, docSchema) {
+		for (var key in doc) {
+
+			// do not output functions
+			if (key === 'id' || key === 'generationTime' || key === '_bsontype') {
+				continue;
+			}
+			var typeName = typeof doc[key];
+			if (typeName === 'function') {
+				continue;
+			}
+
+			if (!docSchema[key]) {
 				docSchema[key] = { "types": {} };
 			}
 
-			if(!docSchema[key]["types"]) {
+			if (!docSchema[key]["types"]) {
 				docSchema[key]["types"] = {};
 			}
 
-			var typeName = typeof doc[key];
-			if(typeName === "object") {
+			if (typeName === "object") {
 				typeName = Object.prototype.toString.call(doc[key]);
 			}
 
 			typeName = typeName.replace("[object ", "");
 			typeName = typeName.replace("]", "");
 
-			if(!docSchema[key]["types"][typeName]) {
+			if (!docSchema[key]["types"][typeName]) {
 				docSchema[key]["types"][typeName] = { frequency: 0 };
 			}
 			docSchema[key]["types"][typeName]["frequency"]++;
 
-			if(typeName == "string" && /^[23456789ABCDEFGHJKLMNPQRSTWXYZabcdefghijkmnopqrstuvwxyz]{17}$/.test(doc[key])) {
-				if(key == "_id") {
+			// Consider both strings and Objects could contain id values that are foreign keys to another collection
+			// TBD Array of string ids
+			// TBD String containing comma separated list of ids
+			// Nice to have: util function isValidMongoID(typeName, doc[key])
+			if (
+				(typeName == "string" && /[0-9A-Fa-f]{24}/g.test(doc[key]))
+				||
+				// (typeName = "string" && doc[key].split(",").length > 1)
+				// ||
+				(typeName === "Object" && /[0-9A-Fa-f]{24}/g.test(doc[key].toString()))
+			) {
+				if (key == "_id") {
 					docSchema[key]["primaryKey"] = true;
 				} else {
 					// only if is not already processes
-					if(!docSchema[key]["foreignKey"] || !docSchema[key]["references"]) {
+					if (!docSchema[key]["foreignKey"] || !docSchema[key]["references"]) {
 						// only if is not ignored
-						if(!(opts.dontFollowFK["__ANY__"][key] || (opts.dontFollowFK[collectionName] && opts.dontFollowFK[collectionName][key]))) {
-							findRelatedCollection(doc[key], docSchema[key]);
+						if (!(opts.dontFollowFK["__ANY__"][key] || (opts.dontFollowFK[collectionName] && opts.dontFollowFK[collectionName][key]))) {
+							findRelatedCollection(collectionName, key, typeName, doc[key], docSchema[key]);
 						}
 					}
 				}
 			}
 
-			if(typeName == "Object") {
+
+			if (typeName == "Object") {
 				docSchema[key]["types"][typeName]["structure"] = {};
 				getDocSchema(collectionName, doc[key], docSchema[key]["types"][typeName]["structure"]);
 			}
 		}
 	};
 
-	var mostFrequentType = function(docSchema, processed) {
-		if(processed) {
-			for(var fieldName in docSchema) {
-				if(docSchema[fieldName]) {
+	var mostFrequentType = function (docSchema, processed) {
+		if (processed) {
+			for (var fieldName in docSchema) {
+				if (docSchema[fieldName]) {
 					var max = 0;
 					var notNull = true;
-					for(var typeName in docSchema[fieldName]["types"]) {
-						if(typeName == "Null") {
-							notNull = false;									
+					for (var typeName in docSchema[fieldName]["types"]) {
+						if (typeName == "Null") {
+							notNull = false;
 						}
 						docSchema[fieldName]["types"][typeName]["frequency"] = docSchema[fieldName]["types"][typeName]["frequency"] / processed;
-						if(docSchema[fieldName]["types"][typeName]["frequency"] > max) {
+						if (docSchema[fieldName]["types"][typeName]["frequency"] > max) {
 							max = docSchema[fieldName]["types"][typeName]["frequency"];
-							if(typeName != "undefined" && typeName != "Null") {
+							if (typeName != "undefined" && typeName != "Null") {
 								docSchema[fieldName]["type"] = typeName;
 							}
 						}
 					}
-					if(!docSchema[fieldName]["type"]) {
+					if (!docSchema[fieldName]["type"]) {
 						docSchema[fieldName]["type"] = "undefined";
 						notNull = false;
 					}
 
 					var dataType = docSchema[fieldName]["type"];
-					if(dataType == "Object") {
+					if (dataType == "Object") {
 						mostFrequentType(docSchema[fieldName]["types"][dataType]["structure"], processed);
 						docSchema[fieldName]["structure"] = docSchema[fieldName]["types"][dataType]["structure"];
 					}
@@ -102,19 +135,19 @@ var getSchema = function(url, opts) {
 		}
 	};
 
-	collectionInfos.map(function(collectionInfo, index) {
+	collectionInfos.map(function (collectionInfo, index) {
 		var collectionData = {};
 		collections[collectionInfo.name] = collectionData;
 		collectionData["collection"] = db.collection(collectionInfo.name);
 	});
 
-	collectionInfos.map(function(collectionInfo, index) {
+	collectionInfos.map(function (collectionInfo, index) {
 		collectionData = collections[collectionInfo.name];
 		var docSchema = {};
 		schema[collectionInfo.name] = docSchema;
 		var cur = wait.forMethod(collectionData["collection"], "find", {}, { limit: 100 });
 		var docs = wait.forMethod(cur, "toArray");
-		docs.map(function(doc) {
+		docs.map(function (doc) {
 			getDocSchema(collectionInfo.name, doc, docSchema);
 		});
 
@@ -126,33 +159,33 @@ var getSchema = function(url, opts) {
 };
 
 
-var printSchema = function(url, opts, cb) {
+var printSchema = function (url, opts, cb) {
 	var schema = null;
 	try {
 		var schema = getSchema(url, opts);
-	} catch(err) {
-		if(cb) {
+	} catch (err) {
+		if (cb) {
 			cb(err, null);
 		} else {
 			console.log(err);
 		}
-		return;	
+		return;
 	}
 
-	if(cb) {
+	if (cb) {
 		cb(null, schema);
 	}
 
 	return schema;
 };
 
-var extractMongoSchema = function(url, opts, cb) {
+var extractMongoSchema = function (url, opts, cb) {
 	wait.launchFiber(printSchema, url, opts, cb);
 };
 
 
-if(typeof module != "undefined" && module.exports) {
-  module.exports.extractMongoSchema = extractMongoSchema;
+if (typeof module != "undefined" && module.exports) {
+	module.exports.extractMongoSchema = extractMongoSchema;
 } else {
 	this.extractMongoSchema = extractMongoSchema;
 }

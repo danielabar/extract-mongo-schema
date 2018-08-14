@@ -50,15 +50,15 @@
 
 	<script>
 		var drawERM = function(data) {
-			var width = window.innerWidth, 
-			initialHeight = window.innerHeight, 
+			var width = window.innerWidth,
+			initialHeight = window.innerHeight,
 			svg = d3.select("body div.container svg"),
 			inner = svg.append("g");
 
 			svg.attr('width', width).attr('height', initialHeight);
 
 			var resizeGraph = function(doCenter) {
-				var newWidth = window.innerWidth; 
+				var newWidth = window.innerWidth;
 				var newHeight = window.innerHeight;
 
 				if(newWidth < g.graph().width + 40) {
@@ -92,7 +92,8 @@
 			}).setGraph({
 			  rankdir: "LR",
 			  edgesep: 25,
-			  nodesep: 0
+				nodesep: 0,
+				ranksep: 200
 			});
 
 			var links = [];
@@ -109,7 +110,7 @@
 					links.push({
 						from: nodeName,
 						to: fieldInfo.references + "__id"
-					});			
+					});
 				}
 
 				if(fieldInfo.type == "Object" && fieldInfo.structure) {

@@ -1,6 +1,7 @@
 var MongoClient = require("mongodb").MongoClient;
 const ObjectID = require('mongodb').ObjectID;
 var wait = require("wait.for");
+const util = require('./lib/util');
 
 var getSchema = function (url, opts) {
 	var db = wait.forMethod(MongoClient, "connect", url);
@@ -67,25 +68,16 @@ var getSchema = function (url, opts) {
 			}
 			docSchema[key]["types"][typeName]["frequency"]++;
 
-			// Consider both strings and Objects could contain id values that are foreign keys to another collection
-			// TBD Array of string ids
-			// TBD String containing comma separated list of ids
-			// Nice to have: util function isValidMongoID(typeName, doc[key])
-			if (
-				(typeName == "string" && /[0-9A-Fa-f]{24}/g.test(doc[key]))
-				||
-				// (typeName = "string" && doc[key].split(",").length > 1)
-				// ||
-				(typeName === "Object" && /[0-9A-Fa-f]{24}/g.test(doc[key].toString()))
-			) {
+			const value = util.extractValue(typeName, doc[key]);
+			if (util.isValidMongoID(value)) {
 				if (key == "_id") {
 					docSchema[key]["primaryKey"] = true;
 				} else {
-					// only if is not already processes
+					// only if is not already processed
 					if (!docSchema[key]["foreignKey"] || !docSchema[key]["references"]) {
 						// only if is not ignored
 						if (!(opts.dontFollowFK["__ANY__"][key] || (opts.dontFollowFK[collectionName] && opts.dontFollowFK[collectionName][key]))) {
-							findRelatedCollection(collectionName, key, typeName, doc[key], docSchema[key]);
+							findRelatedCollection(collectionName, key, typeName, value, docSchema[key]);
 						}
 					}
 				}

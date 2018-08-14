@@ -1,4 +1,11 @@
+# node/npm
 node_modules/
+npm-debug.log
+
+# editor/IDE
 .vscode
+
+# generated
 temp.json
+temp.html
 debug.txt

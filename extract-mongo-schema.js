@@ -12,21 +12,11 @@ var getSchema = function (url, opts) {
 	var collections = {};
 
 	var findRelatedCollection = function (collectionNameSource, key, typeName, value, field) {
-		const searchVal = typeName === 'Object' ? value.toString() : value;
-		// temp debug
-		console.log(`findRelated: colSrc = ${collectionNameSource}, key = ${key}, typeName = ${typeName}, searchVal = ${value}`);
-		try {
-			const testObj = ObjectID(searchVal);
-		} catch (err) {
-			console.log(`\t findRelatedCollection: invalid id, skipping...`);
-			return;
-		}
 		for (var collectionName in collections) {
-			console.log(`\t searching in ${collectionName}`);
-			const relatedByObject = wait.forMethod(collections[collectionName].collection, "findOne", { _id: ObjectID(searchVal) });
-			const relatedByString = wait.forMethod(collections[collectionName].collection, "findOne", { _id: searchVal });
+			const relatedByObject = wait.forMethod(collections[collectionName].collection, "findOne", { _id: ObjectID(value) });
+			const relatedByString = wait.forMethod(collections[collectionName].collection, "findOne", { _id: value });
 			if (relatedByObject || relatedByString) {
-				console.log(`\t\t found relationship to ${collectionName}`);
+				console.log(`\t found relationship to ${collectionName} via ${key}`);
 				delete field["key"];
 				field["foreignKey"] = true;
 				field["references"] = collectionName;
@@ -134,6 +124,7 @@ var getSchema = function (url, opts) {
 	});
 
 	collectionInfos.map(function (collectionInfo, index) {
+		console.log(`Processing ${collectionInfo.name}...`);
 		collectionData = collections[collectionInfo.name];
 		var docSchema = {};
 		schema[collectionInfo.name] = docSchema;

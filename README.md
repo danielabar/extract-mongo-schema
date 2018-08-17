@@ -314,3 +314,7 @@ Run either json or html:
 node cli.js -d "mongodb://localhost:27017/someDB" -o ~/temp/temp-schema.json
 node cli.js -d "mongodb://localhost:27017/someDB" -o ~/temp/temp-schema.html -f html-diagram
 ```
+
+### Nice to have:
+
+Interactive graph exploration like in this dagre [demo](http://cs.brown.edu/people/jcmace/d3/graph.html?id=small.json).

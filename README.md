@@ -299,3 +299,18 @@ extract-mongo-schema -d "mongodb://localhost:3001/meteor" -o schema.html -f html
 
 That's all folks.
 Enjoy! :)
+
+## Development
+
+After checking out:
+
+```bash
+npm install
+```
+
+Run either json or html:
+
+```bash
+node cli.js -d "mongodb://localhost:27017/someDB" -o temp.json
+node cli.js -d "mongodb://localhost:27017/someDB" -o temp.html -f html-diagram
+```

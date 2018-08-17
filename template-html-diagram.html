@@ -49,6 +49,8 @@
 	<script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
 
 	<script>
+		// dagre graph
+		let g;
 		var drawERM = function(data) {
 			var width = window.innerWidth,
 			initialHeight = window.innerHeight,
@@ -57,15 +59,26 @@
 
 			svg.attr('width', width).attr('height', initialHeight);
 
-			// Experiment with interactivity - mouse handlers
+			// Util
+			// function updateNeighbours(node, fillColor) {
+
+			// }
+
+			// Mouse handlers
 			function handleMouseOver(d, i) {
-				console.log(`handleMouseOver: ${d}, ${i}`);
+				console.log(`handleMouseOver: ${d}, ${i}, neighbours = ${g.neighbors(d)}, nodeEdges = ${g.nodeEdges(d)}`);
 				d3.select(this).attr({
 					fill: "orange",
 				});
+				const neighbors = g.neighbors(d);
+				neighbors.forEach(n => {
+					let selector = `[data-selector="${n}"]`;
+					d3.select(selector).attr({
+						fill: "orange"
+					});
+				});
 			}
 			function handleMouseOut(d, i) {
-				console.log(`handleMouseOut: ${d}, ${i}`);
 				d3.select(this).attr({
 					fill: "black",
 				});
@@ -100,7 +113,7 @@
 			svg.call(zoom);
 
 			// create graph
-			var g = new dagreD3.graphlib.Graph({
+			g = new dagreD3.graphlib.Graph({
 			  multigraph: false,
 			  compound: true
 			}).setGraph({
@@ -171,6 +184,7 @@
 
 			// Experiment with interactivity
 			inner.selectAll('g.node')
+				.attr('data-selector', (d) => d)
 				.on('mouseover', handleMouseOver)
 				.on('mouseout', handleMouseOut);
 

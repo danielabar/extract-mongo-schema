@@ -60,9 +60,15 @@
 			svg.attr('width', width).attr('height', initialHeight);
 
 			// Util
-			// function updateNeighbours(node, fillColor) {
-
-			// }
+			function updateNeighbours(node, fillColor) {
+				const neighbors = g.neighbors(node);
+				neighbors.forEach(n => {
+					let selector = `[data-selector="${n}"]`;
+					d3.select(selector).attr({
+						fill: fillColor
+					});
+				});
+			}
 
 			// Mouse handlers
 			function handleMouseOver(d, i) {
@@ -70,18 +76,13 @@
 				d3.select(this).attr({
 					fill: "orange",
 				});
-				const neighbors = g.neighbors(d);
-				neighbors.forEach(n => {
-					let selector = `[data-selector="${n}"]`;
-					d3.select(selector).attr({
-						fill: "orange"
-					});
-				});
+				updateNeighbours(d, "orange");
 			}
 			function handleMouseOut(d, i) {
 				d3.select(this).attr({
 					fill: "black",
 				});
+				updateNeighbours(d, "black");
 			}
 
 			var resizeGraph = function(doCenter) {

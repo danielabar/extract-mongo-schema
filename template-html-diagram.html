@@ -18,7 +18,7 @@
 		  fill-opacity: 0.6;
 		}
 		.edgePath path {
-		  stroke: #333;
+		  /* stroke: #333; */
 		  fill: #333;
 		  fill-opacity: 1;
 		  stroke-opacity: 1;
@@ -69,20 +69,34 @@
 					});
 				});
 			}
+			function updateInOutEdges(node, strokeColor, strokeWidth) {
+				const nodeEdges = g.nodeEdges(node);
+				nodeEdges.forEach(ne => {
+					let selector = `[data-selector="${ne.v}:${ne.w}"]`;
+					console.log(`=== updateInOutEdges: ${selector}`);
+					d3.select(selector).attr({
+						// fill: strokeColor,
+						stroke: strokeColor,
+						['stroke-width']: strokeWidth
+					});
+				});
+			}
 
 			// Mouse handlers
 			function handleMouseOver(d, i) {
-				console.log(`handleMouseOver: ${d}, ${i}, neighbours = ${g.neighbors(d)}, nodeEdges = ${g.nodeEdges(d)}`);
+				// console.log(`handleMouseOver: ${d}, ${i}, neighbours = ${g.neighbors(d)}, nodeEdges = ${g.nodeEdges(d)}`);
 				d3.select(this).attr({
 					fill: "orange",
 				});
 				updateNeighbours(d, "orange");
+				updateInOutEdges(d, "orange", "5px");
 			}
 			function handleMouseOut(d, i) {
 				d3.select(this).attr({
 					fill: "black",
 				});
 				updateNeighbours(d, "black");
+				updateInOutEdges(d, "#333", "1px");
 			}
 
 			var resizeGraph = function(doCenter) {
@@ -183,11 +197,15 @@
 			// Run the renderer. This is what draws the final graph.
 			render(inner, g);
 
-			// Experiment with interactivity
+			// Add data selectors and handlers for interactivity
 			inner.selectAll('g.node')
 				.attr('data-selector', (d) => d)
 				.on('mouseover', handleMouseOver)
 				.on('mouseout', handleMouseOut);
+			// nice to have: mouseover/out on edges to highlight their source and target
+			inner.selectAll('g.edgePath path')
+				.attr('stroke', '#333')
+				.attr('data-selector', (d) => `${d.v}:${d.w}`);
 
 			// adjust height
 			var initialScale = 1; //0.75;

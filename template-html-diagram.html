@@ -57,6 +57,20 @@
 
 			svg.attr('width', width).attr('height', initialHeight);
 
+			// Experiment with interactivity - mouse handlers
+			function handleMouseOver(d, i) {
+				console.log(`handleMouseOver: ${d}, ${i}`);
+				d3.select(this).attr({
+					fill: "orange",
+				});
+			}
+			function handleMouseOut(d, i) {
+				console.log(`handleMouseOut: ${d}, ${i}`);
+				d3.select(this).attr({
+					fill: "black",
+				});
+			}
+
 			var resizeGraph = function(doCenter) {
 				var newWidth = window.innerWidth;
 				var newHeight = window.innerHeight;
@@ -154,6 +168,11 @@
 
 			// Run the renderer. This is what draws the final graph.
 			render(inner, g);
+
+			// Experiment with interactivity
+			inner.selectAll('g.node')
+				.on('mouseover', handleMouseOver)
+				.on('mouseout', handleMouseOut);
 
 			// adjust height
 			var initialScale = 1; //0.75;

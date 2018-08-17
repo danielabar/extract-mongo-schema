@@ -311,6 +311,6 @@ npm install
 Run either json or html:
 
 ```bash
-node cli.js -d "mongodb://localhost:27017/someDB" -o temp.json
-node cli.js -d "mongodb://localhost:27017/someDB" -o temp.html -f html-diagram
+node cli.js -d "mongodb://localhost:27017/someDB" -o ~/temp/temp-schema.json
+node cli.js -d "mongodb://localhost:27017/someDB" -o ~/temp/temp-schema.html -f html-diagram
 ```

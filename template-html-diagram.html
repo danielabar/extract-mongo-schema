@@ -18,7 +18,6 @@
 		  fill-opacity: 0.6;
 		}
 		.edgePath path {
-		  stroke: #333;
 		  fill: #333;
 		  fill-opacity: 1;
 		  stroke-opacity: 1;
@@ -49,6 +48,8 @@
 	<script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
 
 	<script>
+		// dagre graph
+		let g;
 		var drawERM = function(data) {
 			var width = window.innerWidth,
 			initialHeight = window.innerHeight,
@@ -56,6 +57,45 @@
 			inner = svg.append("g");
 
 			svg.attr('width', width).attr('height', initialHeight);
+
+			// Util
+			function updateNeighbours(node, fillColor) {
+				const neighbors = g.neighbors(node);
+				neighbors.forEach(n => {
+					let selector = `[data-selector="${n}"]`;
+					d3.select(selector).attr({
+						fill: fillColor
+					});
+				});
+			}
+			function updateInOutEdges(node, strokeColor, strokeWidth) {
+				const nodeEdges = g.nodeEdges(node);
+				nodeEdges.forEach(ne => {
+					let selector = `[data-selector="${ne.v}:${ne.w}"]`;
+					console.log(`=== updateInOutEdges: ${selector}`);
+					d3.select(selector).attr({
+						// fill: strokeColor,
+						stroke: strokeColor,
+						['stroke-width']: strokeWidth
+					});
+				});
+			}
+
+			// Mouse handlers
+			function handleMouseOver(d, i) {
+				d3.select(this).attr({
+					fill: "orange",
+				});
+				updateNeighbours(d, "orange");
+				updateInOutEdges(d, "orange", "5px");
+			}
+			function handleMouseOut(d, i) {
+				d3.select(this).attr({
+					fill: "black",
+				});
+				updateNeighbours(d, "black");
+				updateInOutEdges(d, "#333", "1px");
+			}
 
 			var resizeGraph = function(doCenter) {
 				var newWidth = window.innerWidth;
@@ -86,7 +126,7 @@
 			svg.call(zoom);
 
 			// create graph
-			var g = new dagreD3.graphlib.Graph({
+			g = new dagreD3.graphlib.Graph({
 			  multigraph: false,
 			  compound: true
 			}).setGraph({
@@ -154,6 +194,15 @@
 
 			// Run the renderer. This is what draws the final graph.
 			render(inner, g);
+
+			// Add data selectors and handlers for interactivity
+			inner.selectAll('g.node')
+				.attr('data-selector', (d) => d)
+				.on('mouseover', handleMouseOver)
+				.on('mouseout', handleMouseOut);
+			inner.selectAll('g.edgePath path')
+				.attr('stroke', '#333')
+				.attr('data-selector', (d) => `${d.v}:${d.w}`);
 
 			// adjust height
 			var initialScale = 1; //0.75;

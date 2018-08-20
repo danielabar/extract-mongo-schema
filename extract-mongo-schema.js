@@ -11,12 +11,15 @@ var getSchema = function (url, opts) {
 	var schema = {};
 	var collections = {};
 
-	var findRelatedCollection = function (collectionNameSource, key, typeName, value, field) {
+	var findRelatedCollection = function (key, typeName, value, field, parentKey) {
 		for (var collectionName in collections) {
 			const relatedByObject = wait.forMethod(collections[collectionName].collection, "findOne", { _id: ObjectID(value) });
 			const relatedByString = wait.forMethod(collections[collectionName].collection, "findOne", { _id: value });
 			if (relatedByObject || relatedByString) {
-				console.log(`\t found relationship to ${collectionName} via ${key}`);
+				const fkMsg = parentKey ?
+					`\tFK (${typeName}) ${parentKey}.${key} -> ${collectionName}` :
+					`\tFK (${typeName}) ${key} -> ${collectionName}`;
+				console.log(fkMsg);
 				delete field["key"];
 				field["foreignKey"] = true;
 				field["references"] = collectionName;
@@ -26,7 +29,7 @@ var getSchema = function (url, opts) {
 		}
 	};
 
-	var getDocSchema = function (collectionName, doc, docSchema) {
+	var getDocSchema = function (collectionName, doc, docSchema, parentKey) {
 		for (var key in doc) {
 
 			// do not output functions
@@ -67,7 +70,7 @@ var getSchema = function (url, opts) {
 					if (!docSchema[key]["foreignKey"] || !docSchema[key]["references"]) {
 						// only if is not ignored
 						if (!(opts.dontFollowFK["__ANY__"][key] || (opts.dontFollowFK[collectionName] && opts.dontFollowFK[collectionName][key]))) {
-							findRelatedCollection(collectionName, key, typeName, value, docSchema[key]);
+							findRelatedCollection(key, typeName, value, docSchema[key], parentKey);
 						}
 					}
 				}
@@ -76,7 +79,7 @@ var getSchema = function (url, opts) {
 
 			if (typeName == "Object") {
 				docSchema[key]["types"][typeName]["structure"] = {};
-				getDocSchema(collectionName, doc[key], docSchema[key]["types"][typeName]["structure"]);
+				getDocSchema(collectionName, doc[key], docSchema[key]["types"][typeName]["structure"], key);
 			}
 		}
 	};
@@ -124,7 +127,7 @@ var getSchema = function (url, opts) {
 	});
 
 	collectionInfos.map(function (collectionInfo, index) {
-		console.log(`Processing ${collectionInfo.name}...`);
+		console.log(`Collection: ${collectionInfo.name}`);
 		collectionData = collections[collectionInfo.name];
 		var docSchema = {};
 		schema[collectionInfo.name] = docSchema;
